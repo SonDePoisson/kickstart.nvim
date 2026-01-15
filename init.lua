@@ -242,16 +242,6 @@ local function open_claude()
   end
 end
 
--- Focus sur Claude depuis n'importe où
-local function focus_claude()
-  if claude_win and vim.api.nvim_win_is_valid(claude_win) then
-    vim.api.nvim_set_current_win(claude_win)
-    vim.cmd 'startinsert'
-  else
-    open_claude()
-  end
-end
-
 vim.keymap.set('n', '<leader>tc', open_claude, { desc = '[T]oggle [C]laude Code' })
 
 -- TIP: Disable arrow keys in normal mode
