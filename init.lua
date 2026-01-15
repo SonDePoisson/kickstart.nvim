@@ -244,6 +244,38 @@ end
 
 vim.keymap.set('n', '<leader>tc', open_claude, { desc = '[T]oggle [C]laude Code' })
 
+-- Raccourcis Meta (Command configuré en meta dans iTerm2) pour macOS
+-- Toggle terminal avec Command+j
+vim.keymap.set({ 'n', 'i', 't' }, '<M-j>', function()
+  if vim.fn.mode() == 'i' then
+    vim.cmd 'stopinsert'
+  end
+  if terminal_win and vim.api.nvim_win_is_valid(terminal_win) then
+    vim.api.nvim_win_hide(terminal_win)
+    terminal_win = nil
+  else
+    if terminal_buf and vim.api.nvim_buf_is_valid(terminal_buf) then
+      terminal_win = vim.api.nvim_open_win(terminal_buf, true, {
+        split = 'below',
+        height = 15,
+      })
+    else
+      vim.cmd 'botright 15split | terminal'
+      terminal_buf = vim.api.nvim_get_current_buf()
+      terminal_win = vim.api.nvim_get_current_win()
+    end
+    vim.cmd 'startinsert'
+  end
+end, { desc = 'Toggle Terminal (Cmd+j)' })
+
+-- Toggle Claude avec Command+Shift+m
+vim.keymap.set({ 'n', 'i', 't' }, '<M-S-m>', function()
+  if vim.fn.mode() == 'i' then
+    vim.cmd 'stopinsert'
+  end
+  open_claude()
+end, { desc = 'Toggle Claude Code (Cmd+Shift+m)' })
+
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
 -- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
