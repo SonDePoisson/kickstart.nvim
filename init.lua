@@ -184,6 +184,76 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
+-- Navigation depuis le mode terminal vers les autres fenêtres
+vim.keymap.set('t', '<C-h>', '<C-\\><C-n><C-w>h', { desc = 'Move to left window from terminal' })
+vim.keymap.set('t', '<C-l>', '<C-\\><C-n><C-w>l', { desc = 'Move to right window from terminal' })
+vim.keymap.set('t', '<C-j>', '<C-\\><C-n><C-w>j', { desc = 'Move to lower window from terminal' })
+vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w>k', { desc = 'Move to upper window from terminal' })
+
+-- Toggle terminal
+local terminal_buf = nil
+local terminal_win = nil
+
+vim.keymap.set('n', '<leader>tt', function()
+  if terminal_win and vim.api.nvim_win_is_valid(terminal_win) then
+    vim.api.nvim_win_hide(terminal_win)
+    terminal_win = nil
+  else
+    if terminal_buf and vim.api.nvim_buf_is_valid(terminal_buf) then
+      terminal_win = vim.api.nvim_open_win(terminal_buf, true, {
+        split = 'below',
+        height = 15,
+      })
+    else
+      vim.cmd 'botright 15split | terminal'
+      terminal_buf = vim.api.nvim_get_current_buf()
+      terminal_win = vim.api.nvim_get_current_win()
+    end
+    vim.cmd 'startinsert'
+  end
+end, { desc = '[T]oggle [T]erminal' })
+
+-- Toggle Claude Code
+local claude_buf = nil
+local claude_win = nil
+
+local function open_claude()
+  if claude_win and vim.api.nvim_win_is_valid(claude_win) then
+    vim.api.nvim_win_hide(claude_win)
+    claude_win = nil
+  else
+    if claude_buf and vim.api.nvim_buf_is_valid(claude_buf) then
+      claude_win = vim.api.nvim_open_win(claude_buf, true, {
+        split = 'right',
+        width = math.floor(vim.o.columns * 0.4),
+      })
+    else
+      vim.cmd 'botright vsplit | terminal claude'
+      claude_buf = vim.api.nvim_get_current_buf()
+      claude_win = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_width(claude_win, math.floor(vim.o.columns * 0.4))
+      -- Options pour améliorer le rendu du terminal Claude
+      vim.bo[claude_buf].scrollback = 10000
+      vim.wo[claude_win].number = false
+      vim.wo[claude_win].relativenumber = false
+      vim.wo[claude_win].signcolumn = 'no'
+    end
+    vim.cmd 'startinsert'
+  end
+end
+
+-- Focus sur Claude depuis n'importe où
+local function focus_claude()
+  if claude_win and vim.api.nvim_win_is_valid(claude_win) then
+    vim.api.nvim_set_current_win(claude_win)
+    vim.cmd 'startinsert'
+  else
+    open_claude()
+  end
+end
+
+vim.keymap.set('n', '<leader>tc', open_claude, { desc = '[T]oggle [C]laude Code' })
+
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
 -- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
@@ -207,6 +277,20 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
+
+-- Auto-enter insert mode when entering a terminal buffer
+-- Utilise un defer pour éviter les problèmes de curseur
+vim.api.nvim_create_autocmd({ 'BufEnter', 'WinEnter' }, {
+  pattern = 'term://*',
+  callback = function()
+    -- Defer pour laisser le temps au terminal de se stabiliser
+    vim.defer_fn(function()
+      if vim.bo.buftype == 'terminal' then
+        vim.cmd 'startinsert'
+      end
+    end, 10)
+  end,
+})
 
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode
@@ -941,27 +1025,6 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
-    -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-    opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
-    },
-    -- There are additional nvim-treesitter modules that you can use to interact
-    -- with nvim-treesitter. You should go explore a few and see what interests you:
-    --
-    --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-    --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-    --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
