@@ -194,24 +194,26 @@ vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w>k', { desc = 'Move to upper window
 local terminal_buf = nil
 local terminal_win = nil
 
-vim.keymap.set('n', '<leader>tt', function()
+local function toggle_terminal()
   if terminal_win and vim.api.nvim_win_is_valid(terminal_win) then
     vim.api.nvim_win_hide(terminal_win)
     terminal_win = nil
-  else
-    if terminal_buf and vim.api.nvim_buf_is_valid(terminal_buf) then
-      terminal_win = vim.api.nvim_open_win(terminal_buf, true, {
-        split = 'below',
-        height = 15,
-      })
-    else
-      vim.cmd 'botright 15split | terminal'
-      terminal_buf = vim.api.nvim_get_current_buf()
-      terminal_win = vim.api.nvim_get_current_win()
-    end
-    vim.cmd 'startinsert'
+    return
   end
-end, { desc = '[T]oggle [T]erminal' })
+  if terminal_buf and vim.api.nvim_buf_is_valid(terminal_buf) then
+    terminal_win = vim.api.nvim_open_win(terminal_buf, true, {
+      split = 'below',
+      height = 15,
+    })
+  else
+    vim.cmd 'botright 15split | terminal'
+    terminal_buf = vim.api.nvim_get_current_buf()
+    terminal_win = vim.api.nvim_get_current_win()
+  end
+  vim.cmd 'startinsert'
+end
+
+vim.keymap.set('n', '<leader>tt', toggle_terminal, { desc = '[T]oggle [T]erminal' })
 
 -- Toggle Claude Code
 local claude_buf = nil
@@ -250,22 +252,7 @@ vim.keymap.set({ 'n', 'i', 't' }, '<M-j>', function()
   if vim.fn.mode() == 'i' then
     vim.cmd 'stopinsert'
   end
-  if terminal_win and vim.api.nvim_win_is_valid(terminal_win) then
-    vim.api.nvim_win_hide(terminal_win)
-    terminal_win = nil
-  else
-    if terminal_buf and vim.api.nvim_buf_is_valid(terminal_buf) then
-      terminal_win = vim.api.nvim_open_win(terminal_buf, true, {
-        split = 'below',
-        height = 15,
-      })
-    else
-      vim.cmd 'botright 15split | terminal'
-      terminal_buf = vim.api.nvim_get_current_buf()
-      terminal_win = vim.api.nvim_get_current_win()
-    end
-    vim.cmd 'startinsert'
-  end
+  toggle_terminal()
 end, { desc = 'Toggle Terminal (Cmd+j)' })
 
 -- Toggle Claude avec Command+Shift+m
@@ -736,7 +723,7 @@ require('lazy').setup({
       -- See :help vim.diagnostic.Opts
       vim.diagnostic.config {
         severity_sort = true,
-        update_in_insert = true,
+        update_in_insert = false,
         float = { border = 'rounded', source = 'if_many' },
         underline = { severity = vim.diagnostic.severity.ERROR },
         signs = vim.g.have_nerd_font and {
@@ -961,9 +948,13 @@ require('lazy').setup({
       },
 
       sources = {
-        default = { 'lsp', 'path', 'snippets', 'lazydev' },
+        default = { 'lsp', 'path', 'snippets', 'lazydev', 'buffer' },
         providers = {
           lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
+          buffer = {
+            min_keyword_length = 2,
+            score_offset = -3,
+          },
         },
       },
 
@@ -1048,6 +1039,58 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
+    main = 'nvim-treesitter.configs',
+    opts = {
+      ensure_installed = {
+        'lua',
+        'vim',
+        'vimdoc',
+        'bash',
+        'markdown',
+        'markdown_inline',
+        'javascript',
+        'typescript',
+        'tsx',
+        'html',
+        'css',
+        'json',
+        'yaml',
+        'python',
+      },
+      auto_install = true,
+      highlight = {
+        enable = true,
+        additional_vim_regex_highlighting = { 'ruby' },
+      },
+      indent = { enable = true, disable = { 'ruby' } },
+    },
+  },
+
+  {
+    'echasnovski/mini.comment',
+    event = 'VeryLazy',
+    config = function()
+      require('mini.comment').setup()
+      vim.keymap.set('n', '<C-_>', 'gcc', { remap = true, desc = 'Toggle comment line' })
+      vim.keymap.set('v', '<C-_>', 'gc', { remap = true, desc = 'Toggle comment selection' })
+      vim.keymap.set('n', '<C-/>', 'gcc', { remap = true, desc = 'Toggle comment line' })
+      vim.keymap.set('v', '<C-/>', 'gc', { remap = true, desc = 'Toggle comment selection' })
+    end,
+  },
+
+  {
+    'mg979/vim-visual-multi',
+    branch = 'master',
+    event = 'VeryLazy',
+    init = function()
+      vim.g.VM_maps = {
+        ['Find Under'] = '<C-n>',
+        ['Find Subword Under'] = '<C-n>',
+        ['Select All'] = '<C-S-n>',
+        ['Skip Region'] = '<C-x>',
+      }
+      vim.g.VM_silent_exit = 1
+    end,
   },
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
@@ -1062,7 +1105,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.autopairs',
   -- require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
